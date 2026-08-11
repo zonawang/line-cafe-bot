@@ -297,3 +297,15 @@ Codex 不是幫我把學習拿走，
 
 因為很多時候，最難的不是做大，
 而是把第一天，真正做完。
+
+## 如果你也想直接看今天這版實作
+
+今天這篇提到的內容，包含 LINE webhook、Day 1 的 `Message action`、專案基礎架構，以及 Cloud Run 部署設定，現在都已經整理並開源在這個 repo。
+
+👉 本期內容 GitHub：
+https://github.com/zonawang/line-cafe-bot
+
+👉 更多過往相關專案整理紀錄：
+https://github.com/zonawang/zona-ai-learning-lab
+
+如果你對實作細節有任何想法或問題，也歡迎直接到 GitHub 開 issue 一起交流。
