@@ -1,14 +1,13 @@
 # line-cafe-bot
 
-A LINE Messaging API side project for building a nearby cafe search assistant focused on places suitable for working. This scaffold only sets up the backend foundation:
+A LINE Messaging API side project for building a nearby cafe search assistant focused on places suitable for working. The current implementation covers the backend foundation plus a small Day 1 practice flow:
 
 - TypeScript + Express project structure
 - LINE webhook endpoint
 - LINE webhook signature verification
 - health check endpoint
 - event parsing and event-type logging
-
-This step intentionally does **not** implement Day 1 message action behavior yet.
+- Day 1 `Message action` practice flow
 
 ## Tech Stack
 
@@ -30,14 +29,18 @@ src/
   handlers/
     webhookEventDispatcher.ts
     messageHandler.ts
+    textMessageHandler.ts
     locationHandler.ts
     postbackHandler.ts
   actions/
     index.ts
+    day1MessageActions.ts
   messages/
     index.ts
+    day1Messages.ts
   services/
     lineClient.ts
+    replyMessageService.ts
   types/
     line.ts
   utils/
@@ -152,6 +155,19 @@ If you use another tunnel provider, the webhook path is still:
 https://<public-host>/webhook
 ```
 
+## Day 1: Message Action
+
+Current Day 1 behavior is intentionally small and only focuses on `Message action`.
+
+1. Send one of these trigger texts to the bot:
+   - `開始`
+   - `menu`
+   - `help`
+   - `顯示咖啡廳條件選單`
+2. The bot replies with quick reply buttons backed by `Message action`.
+3. When you tap a button, LINE sends a predefined text message back to the bot.
+4. The bot confirms which condition it received, but it does **not** search for cafes yet.
+
 ## Current Scope
 
 Implemented in this step:
@@ -161,10 +177,10 @@ Implemented in this step:
 - event parsing
 - event type logging
 - `GET /health`
+- Day 1 `Message action` practice flow
 
 Not implemented yet:
 
-- Day 1 message action behavior
 - location search logic
 - Flex Message response building
 - Google Places integration
