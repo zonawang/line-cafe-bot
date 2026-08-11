@@ -155,6 +155,80 @@ If you use another tunnel provider, the webhook path is still:
 https://<public-host>/webhook
 ```
 
+## Deploy to Cloud Run
+
+If you want a stable public webhook URL, deploy this app to Cloud Run instead of relying on a temporary tunnel.
+
+1. Make sure `gcloud` is authenticated and your target project is selected.
+
+```bash
+gcloud auth login
+gcloud config set project <your-gcp-project-id>
+```
+
+2. Create a deployment-only env file.
+
+Do **not** commit this file.
+
+```yaml
+LINE_CHANNEL_SECRET: your_line_channel_secret
+LINE_CHANNEL_ACCESS_TOKEN: your_line_channel_access_token
+```
+
+Example filename:
+
+```text
+cloud-run-env.yaml
+```
+
+3. Deploy the service from source.
+
+```bash
+gcloud run deploy line-cafe-bot \
+  --source . \
+  --region asia-east1 \
+  --allow-unauthenticated \
+  --env-vars-file cloud-run-env.yaml
+```
+
+Notes:
+
+- Cloud Run provides `PORT` automatically, so you do not need to set it in `cloud-run-env.yaml`.
+- If you prefer another region, replace `asia-east1` with your target region.
+
+4. After deployment, copy the Cloud Run service URL.
+
+Example:
+
+```text
+https://line-cafe-bot-xxxxx-uc.a.run.app
+```
+
+5. Set the LINE webhook URL to:
+
+```text
+https://<your-cloud-run-url>/webhook
+```
+
+6. In LINE Developers Console:
+
+- turn on **Use webhook**
+- click **Verify**
+
+7. Verify the deployed health check:
+
+```bash
+curl https://<your-cloud-run-url>/health
+```
+
+Expected response:
+
+```json
+{"status":"ok"}
+```
+
+If you update the bot later, run the same `gcloud run deploy` command again to roll out a new revision.
+
 ## Day 1: Message Action
 
 Current Day 1 behavior is intentionally small and only focuses on `Message action`.
