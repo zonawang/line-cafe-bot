@@ -335,16 +335,4 @@ curl https://<your-cloud-run-url>/health
 3. server log 能看到 text message event
 4. webhook route 本身沒有堆進業務邏輯
 
-## 下一步會接什麼
 
-照原本規劃，後面可以繼續往下做：
-
-- Day 2：Location action
-- Day 3：Postback action
-- Day 4：URI action
-- Day 5：Datetime picker action
-- Day 6：Clipboard action
-- Day 7：Camera / Camera roll action
-- Day 8：Rich menu switch action
-- Day 9：Flex Message + Actions
-- Day 10：完整咖啡廳搜尋 flow
