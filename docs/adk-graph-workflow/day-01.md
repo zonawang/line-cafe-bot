@@ -1,73 +1,107 @@
-# 第 1 天：Google ADK 的 Graph Workflow 是什麼？
+# 第 1 天：Google ADK 的 Graph Workflow 是什麼？（60–75 分鐘）
 
-如果你第一次看到「Graph Workflow」，先把它想成一張「工作流程地圖」。
+今天不是只背 node、edge、route 三個單字。我們會先看 LINE Cafe Bot 現在怎麼處理一則訊息，再畫出如果交給 ADK Graph Workflow，流程會長什麼樣。完成後，你應該能用自己的話解釋一筆訊息如何從 LINE 走到回覆。
 
-地圖上有一些站點，也有連接站點的路線。每個站點負責一件工作；路線則說明完成這件工作後，接下來要去哪裡。有些路線每次都走，有些路線則要看條件才選。
+## 學習目標
 
-在 Google ADK TypeScript 2.0 裡，這張地圖不只是畫給人看的流程圖，而是由程式定義、交給 workflow runtime 執行的圖。節點可以是 AI agent，也可以是一般函式或工具；邊可以表示固定順序，也可以表示條件路由。這讓我們能把「模型思考」和「程式做的確定工作」放在同一條流程裡。[ADK 官方 Graph Workflow 說明](https://github.com/google/adk-docs/blob/main/docs/2.0/index.md) [ADK 官方 workflow 介紹](https://github.com/google/adk-docs/blob/main/docs/workflows/index.md)
+完成今天後，你可以：
 
-## 用咖啡廳搜尋來想像
+1. 說明 node、edge、route 和 workflow 的差異。
+2. 從現有程式找出 LINE event 的處理路徑。
+3. 畫出「有位置、缺位置、搜尋無結果」三條基本流程。
+4. 分辨哪些步驟是一般程式，哪些步驟才可能需要 LLM。
 
-假設使用者在 LINE 傳來：「幫我找附近可以工作的咖啡廳。」
+## 先用生活例子理解 Graph
 
-我們可以先把處理過程畫成這樣：
+把 workflow 想成咖啡店的服務動線：
+
+- **Node（節點）**像櫃台或工作站：每個站點做一件事。
+- **Edge（邊）**像站點間的通道：前一站完成後，下一站在哪裡。
+- **Route（路由）**像分流牌：依條件決定往哪個站點走。
+- **Workflow（工作流程）**是所有站點和通道組成的完整動線。
+
+Google ADK TypeScript 2.0 的 graph workflow 把 AI agent、一般函式和工具都當成可組合的工作節點，依 graph 定義的關係執行；路由可以把流程帶往不同分支。[ADK 2.0 官方說明](https://github.com/google/adk-docs/blob/main/docs/2.0/index.md) [Workflow 官方介紹](https://github.com/google/adk-docs/blob/main/docs/workflows/index.md)
+
+## 15 分鐘：追蹤目前的 LINE 訊息路徑
+
+先不用改程式，也不用安裝 ADK。打開 repo 裡這幾個檔案，回答每個檔案負責什麼：
+
+1. `src/routes/webhook.ts`：LINE 的 HTTP webhook 從哪裡進來？signature 在哪裡驗證？
+2. `src/handlers/webhookEventDispatcher.ts`：事件怎麼被分派？
+3. `src/handlers/textMessageHandler.ts`：文字訊息如何選擇 menu、selection 或 fallback？
+4. `src/services/replyMessageService.ts`：最後怎麼把訊息送回 LINE？
+5. `src/app.ts`：webhook route 如何掛到 Express app？
+
+把現況濃縮成一行：
 
 ```text
-START
-  ↓
-接收 LINE 訊息
-  ↓
-整理使用者需求
-  ↓
-需要位置嗎？
-  ├─ 沒有位置 → 詢問使用者分享位置 → 回覆 LINE
-  └─ 有位置 → 搜尋咖啡廳 → 整理推薦結果 → 回覆 LINE
+LINE webhook → 驗證/dispatch → message handler → reply service → LINE
 ```
 
-這裡每個方框都可以成為一個節點（node），箭頭就是邊（edge）。「需要位置嗎？」則是路由（route）：workflow 根據資料選擇不同的下一站。
+這幾個檔案已經把 HTTP 接收、訊息判斷和回覆服務分出責任。導入 ADK 時，我們會保留 webhook 的驗簽和 HTTP 邊界，把「收到事件後要做哪些對話工作」逐步交給 graph。
 
-用最簡單的方式說：
+## 20 分鐘：畫出目標流程
 
-- **Node 節點**：做一件明確的工作，例如整理輸入、檢查座標、搜尋咖啡廳。
-- **Edge 邊**：定義節點完成後可以接到哪裡。
-- **Route 路由**：根據條件選擇要走的邊，例如有位置就搜尋，沒有位置就提問。
-- **Workflow**：把節點和邊組成可執行的完整流程。
+假設使用者傳「附近有什麼適合工作的咖啡廳？」。先畫第一版 graph：
 
-## 為什麼不把所有事情交給一個 AI？
+```mermaid
+flowchart TD
+    A[收到 LINE event] --> B[整理訊息與位置]
+    B --> C{有有效位置嗎？}
+    C -- 沒有位置 --> D[詢問使用者分享位置]
+    C -- 座標無效 --> E[請使用者重新分享]
+    C -- 有效位置 --> F[用 mock 資料搜尋咖啡廳]
+    F --> G{找到店家嗎？}
+    G -- 找不到 --> H[回覆目前沒有結果]
+    G -- 找到 --> I[整理推薦內容]
+    D --> J[交給 LINE reply service]
+    E --> J
+    H --> J
+    I --> J
+```
 
-如果一個 agent 同時負責解讀訊息、驗證座標、呼叫搜尋 API、排序店家、組合 LINE 訊息，出問題時很難知道是哪一步造成的。
+請把每個方框都想成一件可單獨描述的工作，把箭頭想成工作完成後可能接續的方向。兩個菱形不是要讓 AI 自由猜，而是由清楚的條件選路：位置是否存在、座標是否有效、搜尋結果是否為空。
 
-Graph Workflow 讓每一步的責任更清楚。例如座標格式是否有效，適合由普通程式碼檢查；使用者模糊地說「安靜一點、插座多」，才可能需要模型協助理解。Google 的 workflow 文件也把圖式流程描述為可組合 AI agent 與 deterministic 執行節點，並能依條件分支。[ADK Workflows 官方說明](https://github.com/google/adk-docs/blob/main/docs/workflows/index.md)
+## 15 分鐘：判斷哪些工作需要 AI
 
-重點不是「每個節點都要用 AI」，而是讓流程明確、容易觀察，也更容易找出錯誤。
+先將圖上的工作分成兩類：
 
-## 今天的實作：先畫圖，不急著裝套件
+| 工作 | 建議方式 | 原因 |
+|---|---|---|
+| 檢查 latitude/longitude 格式與範圍 | 一般程式 | 規則明確，需要穩定可重現 |
+| 根據座標查詢咖啡廳 | tool / 一般函式 | 需要執行受控的搜尋動作 |
+| 判斷搜尋結果是否為空 | 一般程式 | 條件清楚，不需要模型判斷 |
+| 理解「安靜一點、插座多」 | 之後可用 LLM | 使用者的自然語言偏好可能有不同說法 |
+| 把結果轉成 LINE 訊息格式 | 一般程式 | 格式必須符合 LINE Messaging API |
 
-請拿紙、白板或 Mermaid，為 LINE Cafe Bot 畫出第一版流程。至少放入：
+Graph Workflow 的價值之一，是可以把不同類型的工作放在同一個可理解的流程裡。不是每個 node 都要呼叫模型。驗證、分支和固定格式通常由一般程式處理；需要理解自然語言時再考慮 LLM。[ADK workflow 架構說明](https://github.com/google/adk-docs/blob/main/docs/workflows/index.md)
 
-1. 收到訊息
-2. 判斷是否有位置
-3. 缺位置時詢問分享位置
-4. 有位置時用 mock 資料搜尋店家
-5. 把結果回覆給使用者
-6. 搜尋沒有結果時提供替代回覆
+## 自己動手：用三個輸入走一次圖（10–15 分鐘）
 
-然後用三個例子走一次流程：
+拿三個例子逐步沿著箭頭走，並在每個 node 旁寫下輸入和輸出：
 
-- 「幫我找咖啡廳」：目前沒有位置，會走哪條路？
-- 分享目前位置：會走到哪個節點？
-- 有位置，但搜尋結果是空的：要怎麼結束這條路？
+1. 「幫我找咖啡廳」，沒有位置：最後回什麼？會經過哪些節點？
+2. 分享有效位置，但 mock 搜尋沒有結果：走哪條 route？
+3. 分享有效位置，mock 找到三家：哪個 node 整理結果？哪個 service 回 LINE？
 
-這就是 Graph Workflow 最重要的第一步：先清楚描述「有哪些工作」與「不同狀況下會走哪裡」，再把圖寫成程式。
+如果某個情況走到一半沒有下一步，代表流程圖還少了一條 edge 或 fallback。
 
-## 小測驗
+## 今天的自我檢查
 
-1. 檢查座標格式適合放在哪個節點？為什麼？
-2. 「有位置」和「沒有位置」是兩個節點，還是同一個節點之後的兩條路由？
-3. 哪個步驟真的需要 LLM？哪個步驟應使用一般程式？
+- 能指出目前 webhook、handler、reply service 各自的責任嗎？
+- 能解釋「有位置/沒位置」為什麼是 route，而不是叫一個 LLM 猜嗎？
+- 你的圖有處理座標無效與搜尋無結果嗎？
+- 你能說出為什麼今天先不裝 ADK 嗎？因為先釐清現有行為和流程，比在還沒定義輸入輸出時直接接框架容易驗收。
 
-### 今天的答案方向
+### 演講可以這樣說
 
-座標檢查通常是 deterministic 的函式節點。兩種位置狀態通常是由檢查結果選擇的不同路由。至於 LLM，可先留給自然語言意圖或偏好理解；基本驗證和回覆格式不必交給模型。
+「我們先把 LINE Bot 想成一條服務動線。Node 是一個工作站，Edge 是站點間的連接，Route 是按條件分流。ADK Graph Workflow 把這條動線變成可執行的程式結構。這樣可以清楚決定哪些工作交給模型，哪些工作由一般程式穩定處理。」
 
-明天我們會看 LINE webhook 和 Graph Workflow 怎麼合作：為什麼不需要把 webhook 整個改掉，也能逐步導入 ADK。
+### 常見誤解
+
+- **Graph 就是畫圖工具：**圖不只是文件，它會描述執行順序和分支。
+- **所有 node 都是 AI agent：**普通函式和 tool 也可以是 node。
+- **有 AI 就不需要條件判斷：**明確的規則應保留在程式，讓結果可預測。
+- **要先一次重寫整個 bot：**我們會保留 LINE webhook，逐步把對話流程移進 graph。
+
+明天我們會確認 ADK TypeScript 的執行條件，並決定 webhook 和 workflow 的界線，開始建立最小 ADK 骨架。
