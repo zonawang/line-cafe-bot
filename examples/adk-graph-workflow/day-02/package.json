@@ -8,7 +8,8 @@
   },
   "scripts": {
     "dev": "adk web",
-    "run": "adk run agent.ts"
+    "run": "adk run agent.ts",
+    "run:day3": "adk run day03Agent.ts"
   },
   "dependencies": {
     "@google/adk": "2.3.0"
